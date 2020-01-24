@@ -1,25 +1,258 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
+title: "Reproducible Research - Course Project 1"
+author: "Junaid Ishaq"
+date: "1/24/2020"
+output:
   html_document:
     keep_md: true
+    theme: united
+    highlight: default
 ---
 
+&nbsp;
 
-## Loading and preprocessing the data
+## Main Tasks
+1. Loading and preprocessing the data
+    + Load the data
+    + Process/transform the data (if necessary)
+2. Calculating mean total number of steps taken per day
+    + Total number of steps taken per day
+    + Make a histogram of the total number of steps taken each day
+    + Report the mean and median of the total number of steps taken per day
+3. Average daily activity pattern
+    + Make a time series plot of the 5-minute interval and the average number of steps taken, averaged across all days
+    + Determine 5-minutes interval containing the maximum number of steps
+4. Imputing missing values
+    + Report the total number of missing values in the dataset
+    + Fill in all of the missing values
+    + Create a new dataset that is equal to the original dataset but with the missing data filled in
+    + Make a histogram of the total number of steps taken each day
+    + Report the mean and median of the total number of steps taken per day
+    + Report the difference in mean, median and total number of steps in new and old datasets
+5. Differences in activity patterns between weekdays and weekends
+    + Create a new factor variable in the dataset with two levels – “weekday” and “weekend”
+    + Make a panel plot containing a time series plot of the 5-minute interval and the average number of steps taken, averaged across all weekday days or weekend days
 
+&nbsp;
 
+## 1. Loading and preprocessing the data
+### 1.1 Data loading
+```{r echo=TRUE}
+library(knitr, warn.conflicts = FALSE)
+library(dplyr, warn.conflicts = FALSE)
+library(ggplot2, warn.conflicts = FALSE)
+library(kableExtra, warn.conflicts = FALSE)
 
-## What is mean total number of steps taken per day?
+setwd("C:/Users/junai/Desktop")
+activity <- read.csv("activity.csv")
+```
 
+### 1.2 Data preprocessing/transforming
+Not required!
 
+&nbsp;
 
-## What is the average daily activity pattern?
+## 2. Calculating mean total number of steps taken per day
+### 2.1 Total number of steps
+```{r echo=TRUE}
+total_steps <- sum(activity$steps, na.rm = TRUE)
+cat("Total number of steps: ", total_steps)
+```
 
+### Reporting the total, mean and median for steps taken per day
+```{r results = "asis"}
+# calculate steps total, mean, median and number of NAs for each day
+date_stats <- activity %>%
+              group_by(date) %>%
+              summarise(Total = sum(steps, na.rm=TRUE),
+                        Mean = mean(steps, na.rm=TRUE),
+                        Median = median(steps, na.rm=TRUE),
+                        NAs = sum(is.na(steps)))
 
+date_stats %>%
+  knitr::kable(format="html", digits=0) %>%
+  kable_styling(bootstrap_options = "striped",
+              full_width = F,
+              position = "center")
+```
 
-## Imputing missing values
+&nbsp;
 
+### 2.2 Histogram of total number of steps
+```{r echo=TRUE, fig.align="center"}
+g <-ggplot(date_stats, aes(x = Total))
+g + geom_histogram(binwidth=2000, color="white", aes(fill=..count..)) +
+    geom_rug(sides="t") +
+    labs(title="Frequency of steps taken per day", x = "Steps", y = "Days") +
+    scale_fill_gradient("Count", low="yellow", high="red") +
+    scale_y_continuous(breaks = seq(0,12,2)) +
+    scale_x_continuous(breaks = seq(0, 23000, 4000)) +
+    theme(plot.title = element_text(face = "bold", color = "black", size = 11, hjust=0.5),
+          axis.title = element_text(face = "bold", color = "black", size = 10),
+          axis.text.x = element_text(face = "bold", color = "black", size = 10),
+          axis.text.y = element_text(face = "bold", color = "black", size = 10),
+          legend.title = element_blank(),
+          legend.text = element_text(face = "bold", color = "black", size = 10),
+          legend.position = c(0.85,0.8),
+          legend.direction = "horizontal")
+```
 
+&nbsp;
 
-## Are there differences in activity patterns between weekdays and weekends?
+### 2.3 Mean and median for total number of steps taken per day
+```{r echo=TRUE}
+cat("Mean for total number of steps:   ", round(mean(date_stats$Total),0))
+cat("Median for total number of steps: ", median(date_stats$Total))
+```
+
+&nbsp;
+
+## 3. Average daily activity pattern
+### 3.1 Time series plot of the 5-minute interval
+```{r echo=TRUE, fig.align="center"}
+interval_stats <- activity %>%
+                  group_by(interval) %>%
+                  summarise(Total = sum(steps, na.rm=TRUE),
+                            Mean = mean(steps, na.rm=TRUE),
+                            Median = median(steps, na.rm=TRUE))
+
+# Line plot
+g <-ggplot(interval_stats, aes(x = interval, y = Mean))
+g + geom_line(color = "blue") +
+    labs(title="Average number of steps per interval", x = "Interval", y = "Steps") +
+    theme(plot.title = element_text(face = "bold", color = "black", size = 11, hjust=0.5),
+          axis.title = element_text(face = "bold", color = "black", size = 10),
+          axis.text.x = element_text(face = "bold", color = "black", size = 10),
+          axis.text.y = element_text(face = "bold", color = "black", size = 10))
+```
+
+&nbsp;
+
+### 3.2 Determining the interval with maximum number of steps
+```{r echo=TRUE}
+max <- which.max(interval_stats$Mean)
+cat("Interval with maximum number of steps: ", interval_stats$interval[max])
+```
+
+&nbsp;
+
+## 4. Imputing missing values
+### 4.1 Determining and reporting total number of missing values in the dataset
+```{r echo=TRUE}
+cat("Total number of missing values = ", sum(is.na(activity$steps)))
+```
+
+&nbsp;
+
+### 4.2 Create a new dataset
+```{r echo=TRUE}
+activity_noNAs <- activity
+```
+
+&nbsp;
+
+### 4.3 Replacing missing values in the new dataset with the average value for each interval
+```{r echo=TRUE}
+ind <- which(is.na(activity$steps)) # indices for NAs
+activity_noNAs$steps[ind] <- interval_stats$Mean # replace NAs in the new dataset
+```
+
+&nbsp;
+
+### 4.4 Histogram of total number of steps for the new dataset
+```{r echo=TRUE, fig.align="center"}
+date_stats_noNAs <- activity_noNAs %>%
+                    group_by(date) %>%
+                    summarise(Total = sum(steps, na.rm=TRUE),
+                              Mean = mean(steps, na.rm=TRUE),
+                              Median = median(steps, na.rm=TRUE))
+
+g <-ggplot(date_stats_noNAs, aes(x = Total))
+g + geom_histogram(binwidth=2000, color="white", aes(fill=..count..)) +
+    geom_rug(sides="t") +
+    labs(title="Frequency of steps taken per day", x = "Steps", y = "Days") +
+    scale_fill_gradient("Count", low="yellow", high="red") +
+    scale_y_continuous(breaks = seq(0,24,4)) +
+    scale_x_continuous(breaks = seq(0, 23000, 4000)) +
+    theme(plot.title = element_text(face = "bold", color = "black", size = 11, hjust=0.5),
+          axis.title = element_text(face = "bold", color = "black", size = 10),
+          axis.text.x = element_text(face = "bold", color = "black", size = 10),
+          axis.text.y = element_text(face = "bold", color = "black", size = 10),
+          legend.title = element_blank(),
+          legend.text = element_text(face = "bold", color = "black", size = 10),
+          legend.position = c(0.85,0.8),
+          legend.direction = "horizontal")
+```
+
+&nbsp;
+
+### 4.5 Mean and median for total number of steps in the new dataset
+```{r echo=TRUE}
+cat("New mean for total number of steps:   ", round(mean(date_stats_noNAs$Total),0))
+cat("New median for total number of steps: ", round(median(date_stats_noNAs$Total),0))
+total_steps_new <- round(sum(activity_noNAs$steps),0)
+cat("Total number of steps in new dataset:  ", total_steps_new)
+```
+
+&nbsp;
+
+### 4.6 Differences in mean, median and total number of steps between the new and old datasets
+```{r echo=TRUE}
+mean_diff <- mean(date_stats_noNAs$Total) - mean(date_stats$Total)
+median_diff <- median(date_stats_noNAs$Total) - median(date_stats$Total)
+total_diff <- total_steps_new - total_steps
+```
+```{r echo=TRUE}
+cat("Difference in mean:   ", round(mean_diff,0))
+cat("Difference in median: ", round(median_diff,0))
+cat("Difference in total number of steps:   ", total_diff)
+```
+
+&nbsp;
+
+## 5. Activity patterns for weekdays and weekends
+### 5.1 Creating a new factor variable for weekdays and weekends
+```{r echo=TRUE}
+dates <- as.Date(activity$date)
+Day <- weekdays(dates)
+
+activity_noNAs <- cbind(activity_noNAs, Day, Day_type = Day)
+
+wd <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+we <- c("Saturday", "Sunday")
+
+activity_noNAs$Day_type <- as.character(activity_noNAs$Day_type)
+activity_noNAs$Day_type[which(Day %in% wd)] <- "Weekday"
+activity_noNAs$Day_type[which(Day %in% we)] <- "Weekend"
+activity_noNAs$Day_type <- as.factor(activity_noNAs$Day_type)
+```
+
+&nbsp;
+
+### 5.2 Plotting the average of each interval for weekdays and weekends
+```{r echo=TRUE, fig.align="center"}
+wday_avg <- activity_noNAs %>%
+            filter(Day_type=="Weekday") %>%
+            group_by(interval) %>%
+            summarise(Average = mean(steps))
+wday_avg$Day <- as.factor("Weekday")
+
+wend_avg <- activity_noNAs %>%
+            filter(Day_type=="Weekend") %>%
+            group_by(interval) %>%
+            summarise(Average = mean(steps))
+wend_avg$Day <- as.factor("Weekend")
+
+wday_wend <- rbind(wday_avg, wend_avg)
+
+# Line plot for weekdays and weekends
+g <-ggplot(data = wday_wend, aes(x = interval, y = Average))
+g + geom_line(color = "blue") +
+    facet_grid(Day ~ ., scales = "fixed") +
+    labs(title = "Average number of steps per interval", x = "Interval", y = "Steps") +
+    theme(plot.title = element_text(face = "bold", color = "black", size = 11, hjust=0.5),
+          axis.title = element_text(face = "bold", color = "black", size = 10),
+          axis.text.x = element_text(face = "bold", color = "black", size = 10),
+          axis.text.y = element_text(face = "bold", color = "black", size = 10),
+          strip.text = element_text(face = "bold", color = "black", size = 10))
+```
